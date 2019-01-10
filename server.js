@@ -1,28 +1,53 @@
+'use strict';
 
-
-`use strict`;
-
-const express = require('express');
-const app = express();
-const pg = require('pg');
 const superagent = require('superagent');
 
-let urls = [];
+const fetchPeopleWithPromises = () => {
 
-function Urls(url) {
-  this.url = url;
-  urls.push(this);
-}
+  return superagent.get('https://swapi.co/api/people/')
+  .then(response => {
+    return response.body.results.map(person => {
+      return superagent.get(person.url);
+    });
+  })
+  .then(peopleRequests => {
+    return Promise.all(peopleRequests)
+    .then(people => {
+      let names = [];
+      for (let data of people) {
+        names.push(data.body.name);
+      }
+      return names;
+      });
+  });
 
-function getNames(request, response) {
-  const url = 'https://swapi.co/api/people/';
-  superagent.get(url)
-    .then(result => {
-      console.log(result.results)
-    })
-      
-    
-    .catch(error => console.log(error, response));
-}
+};
 
-console.log(getNames());
+fetchPeopleWithPromises()
+.then(people => console.log({people}));
+
+const fetchPeopleWithAsync = async () => {
+  
+  const peopleSet = await superagent.get('https://swapi.co/api/people/');
+
+  const people = (peopleSet.body && peopleSet.body.results) || [];
+
+  const peopleRequests = people.map( (person) => {
+    return superagent.get(person.url)
+  });
+
+  const names = await Promise.all(peopleRequests)
+  .then(people => {
+    let names = [];
+    for(let data of people) {
+      names.push(data.body.name);
+    }
+    return names;
+  });
+
+  return names;
+
+};
+
+fetchPeopleWithAsync()
+.then(people => console.log({people}));
